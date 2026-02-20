@@ -3,7 +3,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Play, Pause, RotateCcw, Clock } from 'lucide-react';
+import { Play, Pause, RotateCcw, Sun, Moon, Sunrise, Sunset, FastForward } from 'lucide-react';
 
 interface TimerState {
   realMinutesPerGameHour: number;
@@ -11,6 +11,13 @@ interface TimerState {
   gameMinutesElapsed: number;
   lastTickTimestamp: number;
 }
+
+const getTimeOfDay = (hours: number) => {
+  if (hours >= 6 && hours < 12) return { label: 'Manhã', icon: Sunrise, emoji: '🌅' };
+  if (hours >= 12 && hours < 18) return { label: 'Tarde', icon: Sun, emoji: '☀️' };
+  if (hours >= 18 && hours < 21) return { label: 'Anoitecer', icon: Sunset, emoji: '🌇' };
+  return { label: 'Noite Profunda', icon: Moon, emoji: '🌙' };
+};
 
 const GameTimer = () => {
   const [timer, setTimer] = useLocalStorage<TimerState>('arcanum-timer', {
@@ -54,8 +61,12 @@ const GameTimer = () => {
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
 
+  const timeOfDay = getTimeOfDay(hours);
+  const TimeIcon = timeOfDay.icon;
+
   const toggle = () => setTimer(prev => ({ ...prev, isRunning: !prev.isRunning, lastTickTimestamp: Date.now() }));
   const reset = () => setTimer(prev => ({ ...prev, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0 }));
+  const skip = (gameMinutes: number) => setTimer(prev => ({ ...prev, gameMinutesElapsed: prev.gameMinutesElapsed + gameMinutes }));
 
   return (
     <div className="space-y-6">
@@ -81,12 +92,29 @@ const GameTimer = () => {
             </div>
 
             <div className="text-center py-8">
-              <Clock className="w-10 h-10 text-primary mx-auto mb-4 opacity-50" />
+              <TimeIcon className="w-12 h-12 text-primary mx-auto mb-3 animate-pulse" />
+              <p className="text-sm text-primary font-semibold mb-2">{timeOfDay.emoji} {timeOfDay.label}</p>
               <div className="text-5xl font-display font-bold text-primary dice-glow">
                 {days > 0 && <span>{days}d </span>}
                 {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}
               </div>
               <p className="text-muted-foreground mt-2">Tempo no jogo</p>
+            </div>
+
+            {/* Skip buttons */}
+            <div className="grid grid-cols-4 gap-2">
+              <Button variant="outline" size="sm" onClick={() => skip(15)}>
+                <FastForward className="w-3 h-3 mr-1" />15min
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => skip(60)}>
+                <FastForward className="w-3 h-3 mr-1" />1h
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => skip(360)}>
+                <FastForward className="w-3 h-3 mr-1" />6h
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => skip(1440)}>
+                <FastForward className="w-3 h-3 mr-1" />1 dia
+              </Button>
             </div>
 
             <div className="flex gap-3">

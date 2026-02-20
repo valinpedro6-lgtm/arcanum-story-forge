@@ -99,7 +99,6 @@ const Players = () => {
           {editing && (
             <div className="space-y-3">
               <Input placeholder="Nome" value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} />
-              <Input placeholder="URL da Imagem" value={editing.image} onChange={e => setEditing({ ...editing, image: e.target.value })} />
               <Input placeholder="Classe" value={editing.className} onChange={e => setEditing({ ...editing, className: e.target.value })} />
               <div className="grid grid-cols-3 gap-3">
                 <div><label className="text-xs text-muted-foreground">Nível</label><Input type="number" min={1} value={editing.level} onChange={e => setEditing({ ...editing, level: parseInt(e.target.value) || 1 })} /></div>
