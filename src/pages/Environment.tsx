@@ -277,26 +277,34 @@ const DEFAULT_ENV: EnvironmentState = {
 
 const Environment = () => {
   const [env, setEnv] = useLocalStorage<EnvironmentState>('arcanum-environment', DEFAULT_ENV);
-  const [timerState, setTimerState] = useState<TimerState>(() => {
-    try {
-      const stored = localStorage.getItem('arcanum-timer');
-      return stored ? JSON.parse(stored) : { realMinutesPerGameHour: 1, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0 };
-    } catch { return { realMinutesPerGameHour: 1, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0 }; }
-  });
+  const [liveGameMinutes, setLiveGameMinutes] = useState(0);
+  const [timerIsRunning, setTimerIsRunning] = useState(false);
   const [pendingEvent, setPendingEvent] = useState<{ desc: string; effect: string } | null>(null);
 
-  // Poll timer from localStorage every second to stay in sync
+  // Compute live game minutes every second, reading timer state from localStorage
   useEffect(() => {
-    const interval = setInterval(() => {
+    const computeMinutes = () => {
       try {
         const stored = localStorage.getItem('arcanum-timer');
-        if (stored) setTimerState(JSON.parse(stored));
+        if (!stored) return;
+        const t: TimerState = JSON.parse(stored);
+        setTimerIsRunning(t.isRunning);
+        if (t.isRunning && t.lastTickTimestamp > 0) {
+          const realMsElapsed = Date.now() - t.lastTickTimestamp;
+          const realMinutesElapsed = realMsElapsed / 60000;
+          const gameMinutesGained = (realMinutesElapsed / t.realMinutesPerGameHour) * 60;
+          setLiveGameMinutes(Math.floor(t.gameMinutesElapsed + gameMinutesGained));
+        } else {
+          setLiveGameMinutes(Math.floor(t.gameMinutesElapsed));
+        }
       } catch {}
-    }, 1000);
+    };
+    computeMinutes();
+    const interval = setInterval(computeMinutes, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const gameMinutes = Math.floor(timerState.gameMinutesElapsed);
+  const gameMinutes = liveGameMinutes;
   const timeOfDay = getTimeOfDay(gameMinutes);
   const TimeIcon = timeOfDay.icon;
   const hours = Math.floor((gameMinutes % 1440) / 60);
@@ -334,7 +342,7 @@ const Environment = () => {
   // Auto events every ~2 game hours
   useEffect(() => {
     if (env.eventMode === 'manual') return;
-    if (!timerState.isRunning) return;
+    if (!timerIsRunning) return;
     // Check every game hour
     const lastEventTime = env.events.length > 0 ? env.events[env.events.length - 1].timestamp : 0;
     if (gameMinutes - lastEventTime >= 120 && Math.random() < 0.3) {
