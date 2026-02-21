@@ -17,8 +17,8 @@ const navItems = [
   { path: '/pocoes', label: 'Poções', icon: FlaskConical },
   { path: '/taverna', label: 'Taverna', icon: Gamepad2 },
   { path: '/npc', label: 'NPC', icon: UserPlus },
-  { path: '/notas', label: 'Notas', icon: StickyNote },
   { path: '/ambiente', label: 'Ambiente', icon: CloudSun },
+  { path: '/notas', label: 'Notas', icon: StickyNote },
 ];
 
 export const Layout = ({ children }: { children: ReactNode }) => {

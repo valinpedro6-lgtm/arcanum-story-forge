@@ -277,12 +277,26 @@ const DEFAULT_ENV: EnvironmentState = {
 
 const Environment = () => {
   const [env, setEnv] = useLocalStorage<EnvironmentState>('arcanum-environment', DEFAULT_ENV);
-  const [timer] = useLocalStorage<TimerState>('arcanum-timer', {
-    realMinutesPerGameHour: 1, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0,
+  const [timerState, setTimerState] = useState<TimerState>(() => {
+    try {
+      const stored = localStorage.getItem('arcanum-timer');
+      return stored ? JSON.parse(stored) : { realMinutesPerGameHour: 1, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0 };
+    } catch { return { realMinutesPerGameHour: 1, isRunning: false, gameMinutesElapsed: 0, lastTickTimestamp: 0 }; }
   });
   const [pendingEvent, setPendingEvent] = useState<{ desc: string; effect: string } | null>(null);
 
-  const gameMinutes = Math.floor(timer.gameMinutesElapsed);
+  // Poll timer from localStorage every second to stay in sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        const stored = localStorage.getItem('arcanum-timer');
+        if (stored) setTimerState(JSON.parse(stored));
+      } catch {}
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const gameMinutes = Math.floor(timerState.gameMinutesElapsed);
   const timeOfDay = getTimeOfDay(gameMinutes);
   const TimeIcon = timeOfDay.icon;
   const hours = Math.floor((gameMinutes % 1440) / 60);
@@ -320,7 +334,7 @@ const Environment = () => {
   // Auto events every ~2 game hours
   useEffect(() => {
     if (env.eventMode === 'manual') return;
-    if (!timer.isRunning) return;
+    if (!timerState.isRunning) return;
     // Check every game hour
     const lastEventTime = env.events.length > 0 ? env.events[env.events.length - 1].timestamp : 0;
     if (gameMinutes - lastEventTime >= 120 && Math.random() < 0.3) {
