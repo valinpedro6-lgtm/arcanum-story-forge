@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import {
   Dices, Clock, Swords, Users, Skull, FlaskConical,
-  Gamepad2, UserPlus, StickyNote, LayoutDashboard, Menu
+  Gamepad2, UserPlus, StickyNote, LayoutDashboard, Menu, CloudSun
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { path: '/taverna', label: 'Taverna', icon: Gamepad2 },
   { path: '/npc', label: 'NPC', icon: UserPlus },
   { path: '/notas', label: 'Notas', icon: StickyNote },
+  { path: '/ambiente', label: 'Ambiente', icon: CloudSun },
 ];
 
 export const Layout = ({ children }: { children: ReactNode }) => {

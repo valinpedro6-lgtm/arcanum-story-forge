@@ -14,6 +14,7 @@ import Potions from "./pages/Potions";
 import TavernGames from "./pages/TavernGames";
 import NPCGenerator from "./pages/NPCGenerator";
 import Notes from "./pages/Notes";
+import Environment from "./pages/Environment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/taverna" element={<TavernGames />} />
             <Route path="/npc" element={<NPCGenerator />} />
             <Route path="/notas" element={<Notes />} />
+            <Route path="/ambiente" element={<Environment />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
