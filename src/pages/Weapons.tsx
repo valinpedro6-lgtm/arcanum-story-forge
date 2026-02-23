@@ -19,7 +19,6 @@ interface Weapon {
 }
 
 const DEFAULT_WEAPONS: Weapon[] = [
-  // Medieval
   { id: 'm1', name: 'Espada Longa', description: 'Arma versátil de uma ou duas mãos', diceCount: 1, diceSides: 8, modifier: 0, category: 'medieval' },
   { id: 'm2', name: 'Machado de Batalha', description: 'Golpe devastador com lâmina pesada', diceCount: 1, diceSides: 10, modifier: 0, category: 'medieval' },
   { id: 'm3', name: 'Adaga', description: 'Lâmina curta e rápida', diceCount: 1, diceSides: 4, modifier: 0, category: 'medieval' },
@@ -35,7 +34,6 @@ const DEFAULT_WEAPONS: Weapon[] = [
   { id: 'm13', name: 'Garrafa Quebrada', description: 'Arma improvisada de taverna', diceCount: 1, diceSides: 4, modifier: 0, category: 'medieval' },
   { id: 'm14', name: 'Cadeira', description: 'Arma improvisada contundente', diceCount: 1, diceSides: 4, modifier: 1, category: 'medieval' },
   { id: 'm15', name: 'Montante', description: 'Espada enorme de duas mãos', diceCount: 2, diceSides: 6, modifier: 0, category: 'medieval' },
-  // Modern
   { id: 'a1', name: 'Pistola 9mm', description: 'Arma de fogo semiautomática padrão', diceCount: 2, diceSides: 6, modifier: 0, category: 'modern' },
   { id: 'a2', name: 'Revólver .357', description: 'Revólver potente de seis tiros', diceCount: 2, diceSides: 8, modifier: 0, category: 'modern' },
   { id: 'a3', name: 'Espingarda', description: 'Dano massivo a curta distância', diceCount: 2, diceSides: 8, modifier: 2, category: 'modern' },
@@ -49,20 +47,26 @@ const DEFAULT_WEAPONS: Weapon[] = [
 ];
 
 const Weapons = () => {
-  const [customWeapons, setCustomWeapons] = useLocalStorage<Weapon[]>('arcanum-weapons', []);
+  const [customWeapons, setCustomWeapons] = useLocalStorage<Weapon[]>('arcanum-weapons-custom', []);
+  const [overrides, setOverrides] = useLocalStorage<Record<string, { diceCount: number; diceSides: number; modifier: number }>>('arcanum-weapons-overrides', {});
   const [results, setResults] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [editIsCustom, setEditIsCustom] = useState(false);
   const [tab, setTab] = useState<'medieval' | 'modern'>('medieval');
   const [form, setForm] = useState<Weapon>({ id: '', name: '', description: '', diceCount: 1, diceSides: 6, modifier: 0, category: 'medieval', custom: true });
 
-  const allWeapons = [...DEFAULT_WEAPONS, ...customWeapons];
+  const getWeapon = (w: Weapon): Weapon => {
+    const ov = overrides[w.id];
+    return ov ? { ...w, diceCount: ov.diceCount, diceSides: ov.diceSides, modifier: ov.modifier } : w;
+  };
+
+  const allWeapons = [...DEFAULT_WEAPONS.map(getWeapon), ...customWeapons];
 
   const rollWeapon = (w: Weapon) => {
     if (w.diceCount === 0) return;
     const rolls = Array.from({ length: w.diceCount }, () => Math.floor(Math.random() * w.diceSides) + 1);
-    const total = rolls.reduce((a, b) => a + b, 0) + w.modifier;
-    setResults(prev => ({ ...prev, [w.id]: total }));
+    setResults(prev => ({ ...prev, [w.id]: rolls.reduce((a, b) => a + b, 0) + w.modifier }));
   };
 
   const formula = (w: Weapon) =>
@@ -70,12 +74,14 @@ const Weapons = () => {
 
   const openNew = () => {
     setEditId(null);
+    setEditIsCustom(false);
     setForm({ id: '', name: '', description: '', diceCount: 1, diceSides: 6, modifier: 0, category: tab, custom: true });
     setOpen(true);
   };
 
-  const openEdit = (w: Weapon) => {
+  const openEdit = (w: Weapon, isCustom: boolean) => {
     setEditId(w.id);
+    setEditIsCustom(isCustom);
     setForm({ ...w });
     setOpen(true);
   };
@@ -83,7 +89,12 @@ const Weapons = () => {
   const save = () => {
     if (!form.name.trim()) return;
     if (editId) {
-      setCustomWeapons(prev => prev.map(w => w.id === editId ? { ...form, id: editId } : w));
+      if (editIsCustom) {
+        setCustomWeapons(prev => prev.map(w => w.id === editId ? { ...form, id: editId } : w));
+      } else {
+        // Save dice override for default weapon
+        setOverrides(prev => ({ ...prev, [editId]: { diceCount: form.diceCount, diceSides: form.diceSides, modifier: form.modifier } }));
+      }
     } else {
       setCustomWeapons(prev => [...prev, { ...form, id: crypto.randomUUID() }]);
     }
@@ -110,6 +121,7 @@ const Weapons = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filtered.map(w => {
                 const Icon = cat === 'medieval' ? Sword : Crosshair;
+                const isCustom = !!w.custom;
                 return (
                   <Card key={w.id} className="card-hover">
                     <CardContent className="p-4">
@@ -121,12 +133,12 @@ const Weapons = () => {
                             <p className="text-xs text-muted-foreground">{w.description}</p>
                           </div>
                         </div>
-                        {w.custom && (
-                          <div className="flex gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(w)}><Pencil className="w-3 h-3" /></Button>
+                        <div className="flex gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(w, isCustom)}><Pencil className="w-3 h-3" /></Button>
+                          {isCustom && (
                             <Button variant="ghost" size="icon" onClick={() => setCustomWeapons(prev => prev.filter(cw => cw.id !== w.id))}><Trash2 className="w-3 h-3" /></Button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between mt-3">
                         <span className="text-sm text-muted-foreground">{formula(w)}</span>
@@ -148,22 +160,31 @@ const Weapons = () => {
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="font-display">{editId ? 'Editar Arma' : 'Nova Arma'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-            <Input placeholder="Descrição" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+            {(editIsCustom || !editId) && (
+              <>
+                <Input placeholder="Nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+                <Input placeholder="Descrição" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              </>
+            )}
+            {editId && !editIsCustom && (
+              <p className="text-sm text-muted-foreground">Editando dados de <span className="font-semibold text-foreground">{form.name}</span></p>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div><label className="text-xs text-muted-foreground">Dados</label><Input type="number" min={0} value={form.diceCount} onChange={e => setForm(p => ({ ...p, diceCount: parseInt(e.target.value) || 0 }))} /></div>
               <div><label className="text-xs text-muted-foreground">Lados</label><Input type="number" min={2} value={form.diceSides} onChange={e => setForm(p => ({ ...p, diceSides: parseInt(e.target.value) || 6 }))} /></div>
               <div><label className="text-xs text-muted-foreground">Mod</label><Input type="number" value={form.modifier} onChange={e => setForm(p => ({ ...p, modifier: parseInt(e.target.value) || 0 }))} /></div>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Categoria</label>
-              <Tabs value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v as 'medieval' | 'modern' }))}>
-                <TabsList className="w-full">
-                  <TabsTrigger value="medieval" className="flex-1">Medieval</TabsTrigger>
-                  <TabsTrigger value="modern" className="flex-1">Moderna</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+            {(editIsCustom || !editId) && (
+              <div>
+                <label className="text-xs text-muted-foreground">Categoria</label>
+                <Tabs value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v as 'medieval' | 'modern' }))}>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="medieval" className="flex-1">Medieval</TabsTrigger>
+                    <TabsTrigger value="modern" className="flex-1">Moderna</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            )}
             <Button onClick={save} className="w-full">{editId ? 'Salvar' : 'Adicionar'}</Button>
           </div>
         </DialogContent>
