@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FlaskConical, Plus, Dices, Trash2 } from 'lucide-react';
+import { FlaskConical, Plus, Dices, Trash2, Pencil } from 'lucide-react';
 
 interface Potion {
   id: string;
@@ -38,7 +38,8 @@ const Potions = () => {
   const [customPotions, setCustomPotions] = useLocalStorage<Potion[]>('arcanum-potions', []);
   const [results, setResults] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
-  const [newPotion, setNewPotion] = useState<Potion>({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<Potion>({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
 
   const allPotions = [...DEFAULT_POTIONS, ...customPotions];
 
@@ -49,10 +50,25 @@ const Potions = () => {
     setResults(prev => ({ ...prev, [p.id]: total }));
   };
 
-  const addCustom = () => {
-    if (!newPotion.name.trim()) return;
-    setCustomPotions(prev => [...prev, { ...newPotion, id: crypto.randomUUID() }]);
-    setNewPotion({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
+  const openNew = () => {
+    setEditId(null);
+    setForm({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
+    setOpen(true);
+  };
+
+  const openEdit = (p: Potion) => {
+    setEditId(p.id);
+    setForm({ ...p });
+    setOpen(true);
+  };
+
+  const save = () => {
+    if (!form.name.trim()) return;
+    if (editId) {
+      setCustomPotions(prev => prev.map(p => p.id === editId ? { ...form, id: editId } : p));
+    } else {
+      setCustomPotions(prev => [...prev, { ...form, id: crypto.randomUUID() }]);
+    }
     setOpen(false);
   };
 
@@ -62,7 +78,7 @@ const Potions = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-display font-bold">Poções</h1>
-        <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-2" />Nova Poção</Button>
+        <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Nova Poção</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -77,7 +93,12 @@ const Potions = () => {
                     <p className="text-xs text-muted-foreground">{p.description}</p>
                   </div>
                 </div>
-                {p.custom && <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setCustomPotions(prev => prev.filter(cp => cp.id !== p.id))}><Trash2 className="w-3 h-3" /></Button>}
+                {p.custom && (
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="w-3 h-3" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setCustomPotions(prev => prev.filter(cp => cp.id !== p.id))}><Trash2 className="w-3 h-3" /></Button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between mt-3">
                 <span className="text-sm text-muted-foreground">{formula(p)}</span>
@@ -93,16 +114,16 @@ const Potions = () => {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="font-display">Nova Poção</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-display">{editId ? 'Editar Poção' : 'Nova Poção'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Nome" value={newPotion.name} onChange={e => setNewPotion(p => ({ ...p, name: e.target.value }))} />
-            <Input placeholder="Descrição" value={newPotion.description} onChange={e => setNewPotion(p => ({ ...p, description: e.target.value }))} />
+            <Input placeholder="Nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+            <Input placeholder="Descrição" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
             <div className="grid grid-cols-3 gap-3">
-              <div><label className="text-xs text-muted-foreground">Dados</label><Input type="number" min={0} value={newPotion.diceCount} onChange={e => setNewPotion(p => ({ ...p, diceCount: parseInt(e.target.value) || 0 }))} /></div>
-              <div><label className="text-xs text-muted-foreground">Lados</label><Input type="number" min={2} value={newPotion.diceSides} onChange={e => setNewPotion(p => ({ ...p, diceSides: parseInt(e.target.value) || 4 }))} /></div>
-              <div><label className="text-xs text-muted-foreground">Mod</label><Input type="number" value={newPotion.modifier} onChange={e => setNewPotion(p => ({ ...p, modifier: parseInt(e.target.value) || 0 }))} /></div>
+              <div><label className="text-xs text-muted-foreground">Dados</label><Input type="number" min={0} value={form.diceCount} onChange={e => setForm(p => ({ ...p, diceCount: parseInt(e.target.value) || 0 }))} /></div>
+              <div><label className="text-xs text-muted-foreground">Lados</label><Input type="number" min={2} value={form.diceSides} onChange={e => setForm(p => ({ ...p, diceSides: parseInt(e.target.value) || 4 }))} /></div>
+              <div><label className="text-xs text-muted-foreground">Mod</label><Input type="number" value={form.modifier} onChange={e => setForm(p => ({ ...p, modifier: parseInt(e.target.value) || 0 }))} /></div>
             </div>
-            <Button onClick={addCustom} className="w-full">Adicionar</Button>
+            <Button onClick={save} className="w-full">{editId ? 'Salvar' : 'Adicionar'}</Button>
           </div>
         </DialogContent>
       </Dialog>
