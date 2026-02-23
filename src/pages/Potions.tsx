@@ -36,28 +36,36 @@ const DEFAULT_POTIONS: Potion[] = [
 
 const Potions = () => {
   const [customPotions, setCustomPotions] = useLocalStorage<Potion[]>('arcanum-potions', []);
+  const [overrides, setOverrides] = useLocalStorage<Record<string, { diceCount: number; diceSides: number; modifier: number }>>('arcanum-potions-overrides', {});
   const [results, setResults] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [editIsCustom, setEditIsCustom] = useState(false);
   const [form, setForm] = useState<Potion>({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
 
-  const allPotions = [...DEFAULT_POTIONS, ...customPotions];
+  const getPotion = (p: Potion): Potion => {
+    const ov = overrides[p.id];
+    return ov ? { ...p, diceCount: ov.diceCount, diceSides: ov.diceSides, modifier: ov.modifier } : p;
+  };
+
+  const allPotions = [...DEFAULT_POTIONS.map(getPotion), ...customPotions];
 
   const rollPotion = (p: Potion) => {
     if (p.diceCount === 0) return;
     const rolls = Array.from({ length: p.diceCount }, () => Math.floor(Math.random() * p.diceSides) + 1);
-    const total = rolls.reduce((a, b) => a + b, 0) + p.modifier;
-    setResults(prev => ({ ...prev, [p.id]: total }));
+    setResults(prev => ({ ...prev, [p.id]: rolls.reduce((a, b) => a + b, 0) + p.modifier }));
   };
 
   const openNew = () => {
     setEditId(null);
+    setEditIsCustom(false);
     setForm({ id: '', name: '', description: '', diceCount: 1, diceSides: 4, modifier: 0, custom: true });
     setOpen(true);
   };
 
-  const openEdit = (p: Potion) => {
+  const openEdit = (p: Potion, isCustom: boolean) => {
     setEditId(p.id);
+    setEditIsCustom(isCustom);
     setForm({ ...p });
     setOpen(true);
   };
@@ -65,7 +73,11 @@ const Potions = () => {
   const save = () => {
     if (!form.name.trim()) return;
     if (editId) {
-      setCustomPotions(prev => prev.map(p => p.id === editId ? { ...form, id: editId } : p));
+      if (editIsCustom) {
+        setCustomPotions(prev => prev.map(p => p.id === editId ? { ...form, id: editId } : p));
+      } else {
+        setOverrides(prev => ({ ...prev, [editId]: { diceCount: form.diceCount, diceSides: form.diceSides, modifier: form.modifier } }));
+      }
     } else {
       setCustomPotions(prev => [...prev, { ...form, id: crypto.randomUUID() }]);
     }
@@ -82,42 +94,52 @@ const Potions = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {allPotions.map(p => (
-          <Card key={p.id} className="card-hover">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <FlaskConical className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <h3 className="font-display font-semibold">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground">{p.description}</p>
+        {allPotions.map(p => {
+          const isCustom = !!p.custom;
+          return (
+            <Card key={p.id} className="card-hover">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-primary flex-shrink-0" />
+                    <div>
+                      <h3 className="font-display font-semibold">{p.name}</h3>
+                      <p className="text-xs text-muted-foreground">{p.description}</p>
+                    </div>
                   </div>
-                </div>
-                {p.custom && (
                   <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="w-3 h-3" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setCustomPotions(prev => prev.filter(cp => cp.id !== p.id))}><Trash2 className="w-3 h-3" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p, isCustom)}><Pencil className="w-3 h-3" /></Button>
+                    {isCustom && (
+                      <Button variant="ghost" size="icon" onClick={() => setCustomPotions(prev => prev.filter(cp => cp.id !== p.id))}><Trash2 className="w-3 h-3" /></Button>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-muted-foreground">{formula(p)}</span>
-                <div className="flex items-center gap-2">
-                  {results[p.id] !== undefined && <span className="text-lg font-display font-bold text-primary">{results[p.id]}</span>}
-                  {p.diceCount > 0 && <Button size="sm" variant="outline" onClick={() => rollPotion(p)}><Dices className="w-3 h-3 mr-1" />Rolar</Button>}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-sm text-muted-foreground">{formula(p)}</span>
+                  <div className="flex items-center gap-2">
+                    {results[p.id] !== undefined && <span className="text-lg font-display font-bold text-primary">{results[p.id]}</span>}
+                    {p.diceCount > 0 && <Button size="sm" variant="outline" onClick={() => rollPotion(p)}><Dices className="w-3 h-3 mr-1" />Rolar</Button>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="font-display">{editId ? 'Editar Poção' : 'Nova Poção'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-            <Input placeholder="Descrição" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+            {(editIsCustom || !editId) && (
+              <>
+                <Input placeholder="Nome" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+                <Input placeholder="Descrição" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              </>
+            )}
+            {editId && !editIsCustom && (
+              <p className="text-sm text-muted-foreground">Editando dados de <span className="font-semibold text-foreground">{form.name}</span></p>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div><label className="text-xs text-muted-foreground">Dados</label><Input type="number" min={0} value={form.diceCount} onChange={e => setForm(p => ({ ...p, diceCount: parseInt(e.target.value) || 0 }))} /></div>
               <div><label className="text-xs text-muted-foreground">Lados</label><Input type="number" min={2} value={form.diceSides} onChange={e => setForm(p => ({ ...p, diceSides: parseInt(e.target.value) || 4 }))} /></div>

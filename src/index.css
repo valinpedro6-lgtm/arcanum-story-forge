@@ -40,6 +40,7 @@
 @layer base {
   * {
     @apply border-border;
+    cursor: url('/cursor-d4.svg') 4 2, auto;
   }
   body {
     @apply bg-background text-foreground;
